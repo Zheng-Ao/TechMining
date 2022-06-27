@@ -3,6 +3,8 @@ Bugs:
 1. aclm的爬取似乎是不robust的。如 10,235,734 和 10,242,425 的claims均为nan；
     这两个在其claims上方都有 Government Interests 的附加信息；
 
+2. 对于不同形式的ref_html该如何处理？（python 文件操作）
+
 
 
 
@@ -22,3 +24,10 @@ Todos:
 3. 数据预处理.py（全局的放在Data里，针对每个模型的放在Models里）；
 
 完成一个标准数据集DATA(2236)
+
+
+
+
+Tips:
+
+1. 用PN来确定专利发布年份。

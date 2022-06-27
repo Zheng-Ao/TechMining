@@ -8,12 +8,31 @@ import pandas as pd
 class Souper:
 
     def __init__(self, PN):
+
         self.PN = str(PN)
+        self.dict = {
+            'PN': self.PN,
+            'REF': self.getSignals(),
+
+            # 下面的皆通过getFeatures()函数进行更新
+            # 把所有feature都单独写个函数太麻烦且不必要，仅针对不太鲁棒的几个特征单独写，其余的都写在getFeatures()中
+
+            # 'IN': "inventor name",
+            'ISD': "issue date",
+            # 'IC': 'inventor city',
+            'TTL': 'title',
+            # 'IS': 'inventor state',
+            'ABST': 'abstract',
+            # 'ICN': 'inventor country',
+            'ACLM': 'claims',
+            # 'ACNM': 'applicant name',
+            'CPC': '',
+            'IPC': '',
+            'b_cits': 'backward citations'
+        }
 
 
     def getFeatures(self):
-
-        features = []
 
         path = "htmls/" + self.PN + ".html"
         with open(path, "r") as file:
@@ -23,18 +42,18 @@ class Souper:
         body = soup.body
         tables = body.find_all('table', recursive=False)
 
-        _ISD = tables[1].find_all(text = re.compile("\d{4}"))[0].text   # robust
+        self.dict['ISD'] = tables[1].find_all(text = re.compile("\d{4}"))[0].text   # robust
 
-        _TTL = body.find_all('font', size = "+1", recursive=False)[0].text  # robust
+        self.dict['TTL'] = body.find_all('font', size = "+1", recursive=False)[0].text  # robust
 
-        _ABST = body.find_all('p', recursive=False)[0].text     # robust
+        self.dict['ABST'] = body.find_all('p', recursive=False)[0].text     # robust
 
         p = body.find_all('p', recursive=False)[1]
         p_tables = p.find_all('table', recursive = False)
 
-        _CPC = p.find_all('td', align ="right", valign="top", width="70%")[1].text
+        self.dict['CPC'] = p.find_all('td', align ="right", valign="top", width="70%")[1].text
 
-        _IPC = p.find_all('td', align ="right", valign="top", width="70%")[2].text
+        self.dict['IPC'] = p.find_all('td', align ="right", valign="top", width="70%")[2].text
 
         # backward citation list
         b_cits = []
@@ -46,14 +65,12 @@ class Souper:
                 dt = valid[1].text
                 b_cits.append([pn,dt])
 
+        self.dict['b_cits'] = b_cits
+
         ass = p.text
         start = ass.find("Claims")+7
         end = ass.find("Description")
-        _ACLM = ass[start:end]
-
-
-        features.extend([self.PN, _ISD, _TTL, _ABST, _CPC, _IPC, b_cits, _ACLM])     # num_features = 7
-        return features
+        self.dict['ACLM'] = ass[start:end]
 
 
 
@@ -64,9 +81,11 @@ class Souper:
 
     def getSignals(self):
 
+        '''取Y标签，看起来好像没什么问题了'''
+
         signals = []
         
-        path = "ref_htmls/" + self.PN + "_ref.html"
+        path = "ref_htmls/" + self.PN + "_ref_1.html"
         with open(path, "r") as file:
             ref_html = file.read()
 
@@ -74,24 +93,29 @@ class Souper:
 
         body = soup.body
 
+        # ref = 1
         if body == None:
             signals.append(1)
             return signals
-
+        
+        # ref != 1
         n_str = body.find_all(text = re.compile('patents.'))[0].text
         start = n_str.find(':')
         end = n_str.find('p')
         n = int(n_str[start+2:end-1])
-        n_page = int(n/50)+1
-
+        n = int(n)
         signals.append(n)
 
+        if n%50 == 0:
+            n_page = int(n/50)
+        else:
+            n_page = int(n/50)+1
+
         for i in range(1, n_page+1):
-            url = url_p  + PN + "&p=" + str(i)
-            _request = request.Request(url, headers= config._headers)
-            _response = request.urlopen(_request)
-            _html = _response.read()
-            soup = BeautifulSoup(_html, "html.parser")
+            path = "ref_htmls/" + self.PN + "_ref_" + str(i) + '.html'
+            with open(path, "r") as file:
+                ref_html = file.read()
+            soup = BeautifulSoup(ref_html, "html.parser")
             body = soup.body
 
             for item in body.find_all(text = re.compile("\d"), href = re.compile("Parser?")):
@@ -103,55 +127,7 @@ class Souper:
 
 
 
-def getFcits(PN):
-    '''
-    Arguments:
-        PN
-    Return:
-        A list contains forward citations.
-        and the number of citations.
-    '''
 
-    signals = []
-
-    url_p = 'https://patft.uspto.gov/netacgi/nph-Parser?Sect1=PTO2&Sect2=HITOFF&u=%2Fnetahtml%2Fsearch-adv.htm&r=0&f=S&l=50&d=PALL&Query=ref/'
-    url = url_p + PN + '&p=1'
-
-    _request = request.Request(url, headers= config._headers)
-    _response = request.urlopen(_request)
-    _html = _response.read()
-    soup = BeautifulSoup(_html, "html.parser")
-    body = soup.body
-
-    if body == None:
-        signals.append(1)
-        return signals
-
-    n_str = body.find_all(text = re.compile('patents.'))[0].text
-    start = n_str.find(':')
-    end = n_str.find('p')
-    n = int(n_str[start+2:end-1])
-    n_page = int(n/50)+1
-
-    signals.append(n)
-
-    for i in range(1, n_page+1):
-        url = url_p  + PN + "&p=" + str(i)
-        _request = request.Request(url, headers= config._headers)
-        _response = request.urlopen(_request)
-        _html = _response.read()
-        soup = BeautifulSoup(_html, "html.parser")
-        body = soup.body
-
-        for item in body.find_all(text = re.compile("\d"), href = re.compile("Parser?")):
-            if len(item.text) < 11:
-                cPN = item.text
-                signals.append(cPN)
-
-    return signals
-
-
-
-
+    
 
 
