@@ -4,6 +4,8 @@ import re
 
 import pandas as pd
 
+import datetime
+
 
 class Souper:
 
@@ -11,8 +13,8 @@ class Souper:
 
         self.PN = str(PN)
         self.dict = {
-            'PN': self.PN,
-            'REF': self.getSignals(),
+            'PN': self.PN.replace(',', ''),
+            'REF': self.getSignals()[0],
 
             # 下面的皆通过getFeatures()函数进行更新
             # 把所有feature都单独写个函数太麻烦且不必要，仅针对不太鲁棒的几个特征单独写，其余的都写在getFeatures()中
@@ -42,7 +44,9 @@ class Souper:
         body = soup.body
         tables = body.find_all('table', recursive=False)
 
-        self.dict['ISD'] = tables[1].find_all(text = re.compile("\d{4}"))[0].text   # robust
+        ISD = tables[1].find_all(text = re.compile("\d{4}"))[0].text   # robust
+        ISD = ISD.replace('*', '').replace('\n', '').strip()
+        self.dict['ISD'] = datetime.datetime.strptime(ISD, '%B %d, %Y')
 
         self.dict['TTL'] = body.find_all('font', size = "+1", recursive=False)[0].text  # robust
 
@@ -51,21 +55,37 @@ class Souper:
         p = body.find_all('p', recursive=False)[1]
         p_tables = p.find_all('table', recursive = False)
 
-        self.dict['CPC'] = p.find_all('td', align ="right", valign="top", width="70%")[1].text
+        CPC = p.find_all('td', align ="right", valign="top", width="70%")[1].text
+        self.dict['CPC'] = CPC.count(';')+1
 
-        self.dict['IPC'] = p.find_all('td', align ="right", valign="top", width="70%")[2].text
+
+        IPC = p.find_all('td', align ="right", valign="top", width="70%")[2].text
+        self.dict['IPC'] = IPC.count(';')+1
+
 
         # backward citation list
         b_cits = []
 
-        for item in p_tables[1].find_all('tr'):
-            valid = item.find_all('td')
-            if len(valid) == 3:
-                pn = valid[0].text
-                dt = valid[1].text
-                b_cits.append([pn,dt])
+        if len(p_tables) > 2:
+            for item in p_tables[1].find_all('tr'):
+                valid = item.find_all('td')
+                if len(valid) == 3:
+                    pn = valid[0].text
+                    # dt = valid[1].text
+                    # b_cits.append([pn,dt])
+                    # 暂时不用日期，只用PN
+                    pn = pn.replace('\n', '')
+                    b_cits.append(pn)
+
+        else:
+            b_cits.append("NULL")
 
         self.dict['b_cits'] = b_cits
+
+            
+
+
+
 
         ass = p.text
         start = ass.find("Claims")+7

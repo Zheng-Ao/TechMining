@@ -17,14 +17,18 @@ Bugs:
 
 
 Todos:
-1. 把所有html和ref_html下载下来（记录下载日期2022/6/21），即 htmlDloader.py；
-    同一类html格式也有区别，这个问题也需要讨论；
 
-2. 改正完善spider.py 为 soup.py，将下载和处理彻底分开；
-3. 数据预处理.py（全局的放在Data里，针对每个模型的放在Models里）；
+去掉一些垃圾数据（如H354）
 
-完成一个标准数据集DATA(2236)
+1. 优化Souper.py（学无止境）
 
+2. 数据预处理.py（全局的放在Data里，针对每个模型的放在Models里）；
+    注意区分缺失值和0值！
+
+
+#. 用lambda函数等手段优化代码
+
+?. 用soft target(真实次数)训练，预测hard target(核心与否)？
 
 
 
